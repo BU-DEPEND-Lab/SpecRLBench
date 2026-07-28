@@ -31,35 +31,38 @@ class MultiGoalSARLevel2(MultiGoalSARLevel1):
 
     def __init__(self, config) -> None:
         super().__init__(config=config)
-        # Stock levels and omitted building_num → one building per agent.
-        # CustomizedSAR may supply building_num via config (_parse) before this runs.
+        # Omitted building_num → one building per agent. Explicit 0 → no buildings.
         if config.get('building_num') is None:
             self.building_num = self.agent_num
-        for i in range(self.building_num):
-            self._add_geoms(LtlWalls(name=f'building{i}_ltl_walls'))
-        geoms = [
-            Buildings(
-                color=list(Buildings.COLORS)[0],
-                size=self.building_keepout * 0.75,
-                num=int(self.building_num),
-                keepout=self.building_keepout,
-                placements=border_placements(
-                    self.building_border_side_length,
-                    self.building_margin,
-                ),
-            ),
-        ]
-        entrapped_num = int(self.agent_num * self.entrapped_casualties_per_agent)
-        if entrapped_num > 0:
+
+        geoms = []
+        if self.building_num > 0:
+            for i in range(self.building_num):
+                self._add_geoms(LtlWalls(name=f'building{i}_ltl_walls'))
             geoms.append(
-                Casualtys(
-                    num=int(entrapped_num),
-                    category="entrapped",
-                    size=self.casualty_size,
-                    keepout=self.entrapped_casualty_keepout,
+                Buildings(
+                    color=list(Buildings.COLORS)[0],
+                    size=self.building_keepout * 0.75,
+                    num=int(self.building_num),
+                    keepout=self.building_keepout,
+                    placements=border_placements(
+                        self.building_border_side_length,
+                        self.building_margin,
+                    ),
                 ),
             )
-        self._add_geoms(*geoms)
+            entrapped_num = int(self.agent_num * self.entrapped_casualties_per_agent)
+            if entrapped_num > 0:
+                geoms.append(
+                    Casualtys(
+                        num=int(entrapped_num),
+                        category="entrapped",
+                        size=self.casualty_size,
+                        keepout=self.entrapped_casualty_keepout,
+                    ),
+                )
+        if geoms:
+            self._add_geoms(*geoms)
 
     def calculate_reward(self):
         return super().calculate_reward()
@@ -74,14 +77,15 @@ class MultiGoalSARLevel2(MultiGoalSARLevel1):
         pass
 
     def _build(self):
-        self._replace_border_buildings(num=self.building_num)
-        entrapped_num = int(self.agent_num * self.entrapped_casualties_per_agent)
-        if entrapped_num > 0:
-            self._replace_geom(Casualtys(
-                category="entrapped",
-                size=self.casualty_size,
-                num=int(entrapped_num),
-                keepout=self.entrapped_casualty_keepout,
-            ))
-        self._replace_building_perimeter_walls()
+        if self.building_num > 0:
+            self._replace_border_buildings(num=self.building_num)
+            entrapped_num = int(self.agent_num * self.entrapped_casualties_per_agent)
+            if entrapped_num > 0:
+                self._replace_geom(Casualtys(
+                    category="entrapped",
+                    size=self.casualty_size,
+                    num=int(entrapped_num),
+                    keepout=self.entrapped_casualty_keepout,
+                ))
+            self._replace_building_perimeter_walls()
         return super()._build()

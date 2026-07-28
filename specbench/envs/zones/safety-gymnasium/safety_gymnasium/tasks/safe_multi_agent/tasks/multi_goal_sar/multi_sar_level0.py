@@ -32,7 +32,6 @@ from safety_gymnasium.tasks.safe_multi_agent.tasks.multi_goal_sar.sar_config_loa
 from safety_gymnasium.tasks.safe_multi_agent.utils.sar_utils import (
     agent_inside_building_idx,
     border_placements,
-    building_count,
     building_geom,
     clear_building_pinned_locations,
     clamp_building_placement_keepout,
@@ -281,7 +280,8 @@ class MultiGoalSARLevel0(BaseTask):
         pass
 
     def _prepare_layout(self) -> None:
-        has_buildings = building_geom(self) is not None
+        buildings = building_geom(self)
+        has_buildings = buildings is not None and buildings.num > 0
         if has_buildings:
             clear_building_pinned_locations(self)
             clamp_building_placement_keepout(self, self.building_margin)
@@ -335,8 +335,10 @@ class MultiGoalSARLevel0(BaseTask):
         ))
 
     def _replace_building_perimeter_walls(self) -> None:
+        if self.building_num <= 0:
+            return
         factor = self.building_keepout * 0.75
-        for i in range(building_count(self)):
+        for i in range(self.building_num):
             self._replace_geom(LtlWalls(
                 name=f'building{i}_ltl_walls',
                 locate_factor=factor,

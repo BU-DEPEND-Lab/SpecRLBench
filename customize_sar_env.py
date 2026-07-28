@@ -19,7 +19,7 @@ env_config = {
 
     # === user-facing knobs (defaults from customized_defaults in multi_goal_sar.yaml) ===
     'agent_num': 2,
-    'building_num': 2,  # omit or None → agent_num
+    'building_num': 2,  # 0 → no buildings/casualties; omit or None → agent_num
     'wall_count': 10,
     'surface_casualties_per_agent': 1,
     'entrapped_casualties_per_agent': 1,

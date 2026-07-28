@@ -224,6 +224,11 @@ def merge_customized_defaults(config: dict[str, Any]) -> dict[str, Any]:
     if merged.get('building_num') is None:
         merged.pop('building_num', None)
 
+    # Explicit 0 → open-field only: no buildings and no casualties.
+    if merged.get('building_num') == 0:
+        merged['surface_casualties_per_agent'] = 0
+        merged['entrapped_casualties_per_agent'] = 0
+
     nested_lidar = merged.pop('lidar_conf', None)
     if isinstance(nested_lidar, dict):
         for nested_key, nested_value in nested_lidar.items():

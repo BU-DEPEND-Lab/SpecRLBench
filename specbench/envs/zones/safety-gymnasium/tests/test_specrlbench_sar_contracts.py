@@ -217,6 +217,35 @@ def test_building_perimeter_wall_keys_exist():
         env.close()
 
 
+def test_customized_sar_building_num_zero_is_open_field():
+    """Explicit building_num=0 must skip buildings, perimeter walls, and casualties."""
+    from specbench.envs.zones.safety_gym_register import register_helper
+
+    env_id = 'CustomizedSARBuildingNumZeroTest-v0'
+    env_config = {
+        'env_id': env_id,
+        'agent_name': 'Point',
+        'max_episode_steps': 100,
+        'agent_num': 1,
+        'building_num': 0,
+        'wall_count': 4,
+        'surface_casualties_per_agent': 2,
+        'entrapped_casualties_per_agent': 1,
+    }
+    register_helper(env_config=env_config)
+    env = safety_gymnasium.make(env_id, sb3=True)
+    try:
+        env.reset(seed=0)
+        task = env.unwrapped.task
+        layout = task.world_info.layout
+        assert 'terracotta_building0' not in layout
+        assert 'building0_ltl_wall0' not in layout
+        assert not hasattr(task, 'surface_casualtys')
+        assert not hasattr(task, 'entrapped_casualtys')
+    finally:
+        env.close()
+
+
 def test_obs_lidar_pseudo_new_empty_positions_is_zeros():
     """Empty building-lidar skip list must not crash (L5 single-building enter)."""
     env = make_env('PointLTL2MASAR1-v0', sb3=True)

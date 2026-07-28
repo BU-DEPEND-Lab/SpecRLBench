@@ -109,8 +109,8 @@ def building_geom(task: BaseTask):
 
 
 def building_count(task: BaseTask) -> int:
-    """Number of buildings for layout sync (explicit count or one per agent)."""
-    return task.building_num if task.building_num != 0 else task.agent_num
+    """Resolved building count (0 means no buildings; omit config → agent_num in L2+)."""
+    return task.building_num
 
 
 def building_prefix_from_geom(buildings) -> str:
@@ -167,7 +167,7 @@ def clamp_building_placement_keepout(task: BaseTask, margin: float) -> None:
 def sync_building_dependents_into_layout(task: BaseTask, layout: dict) -> None:
     """Pin entrapped casualties and perimeter wall segments to building centers."""
     buildings = building_geom(task)
-    if buildings is None:
+    if buildings is None or buildings.num <= 0:
         return
 
     building_prefix = building_prefix_from_geom(buildings)
