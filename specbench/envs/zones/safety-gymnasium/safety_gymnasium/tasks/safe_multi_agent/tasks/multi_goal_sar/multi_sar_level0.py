@@ -47,8 +47,8 @@ class MultiGoalSARLevel0(BaseTask):
     # Level identity (stock L0). Shared recipe lives in configs/multi_goal_sar.yaml.
     wall_count = 0
     reward_goal = 1.0
-    surface_casualties_enabled: bool = True
-    entrapped_casualties_enabled: bool = False
+    surface_casualties_per_agent: int = 1
+    entrapped_casualties_per_agent: int = 0
     building_num: int = 0
 
     # Placeholders so BaseTask._parse can accept CustomizedSAR overrides.
@@ -94,7 +94,7 @@ class MultiGoalSARLevel0(BaseTask):
             keepout=self.agent_keepout,
             placements=self.agent_placements,
         )
-        surface_casualtys_int = int(self.agent_num * self.surface_casualties_enabled)
+        surface_casualtys_int = int(self.agent_num * self.surface_casualties_per_agent)
         # One surface casualty for solo training; otherwise one per agent.
         self.casualty_num = self.agent_num
         self._add_geoms(
@@ -106,7 +106,7 @@ class MultiGoalSARLevel0(BaseTask):
                 Casualtys(
                     category="surface",
                     size=self.casualty_size,
-                    num=surface_casualtys_int,
+                    num=int(surface_casualtys_int),
                     keepout=self.casualty_keepout,
                 ),
             )
@@ -114,7 +114,7 @@ class MultiGoalSARLevel0(BaseTask):
         # Gremlin count is always agent_num (not user-configurable).
         self._add_mocaps(
             Gremlins(
-                num=self.agent_num,
+                num=int(self.agent_num),
                 size=self.gremlin_size,
                 dist_threshold=self.gremlin_dist_threshold,
                 keepout=self.gremlin_keepout,
@@ -326,7 +326,7 @@ class MultiGoalSARLevel0(BaseTask):
         self._replace_geom(Buildings(
             color=list(Buildings.COLORS)[0],
             size=self.building_keepout * 0.75,
-            num=self.agent_num if num is None else num,
+            num=int(self.agent_num if num is None else num),
             keepout=self.building_keepout,
             placements=border_placements(
                 self.building_border_side_length,

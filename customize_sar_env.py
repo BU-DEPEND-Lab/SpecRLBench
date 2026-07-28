@@ -21,8 +21,8 @@ env_config = {
     'agent_num': 2,
     'building_num': 2,  # omit or None → agent_num
     'wall_count': 10,
-    'surface_casualties_enabled': True,
-    'entrapped_casualties_enabled': True,
+    'surface_casualties_per_agent': 1,
+    'entrapped_casualties_per_agent': 1,
     'reward_goal': 1.0,
     'lidar_conf.num_bins': 16,
 

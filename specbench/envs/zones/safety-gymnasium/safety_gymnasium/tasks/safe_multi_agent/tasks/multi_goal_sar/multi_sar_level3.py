@@ -23,5 +23,5 @@ class MultiGoalSARLevel3(MultiGoalSARLevel2):
     """L2 setup with both surface and entrapped casualties enabled."""
 
     wall_count = 10
-    surface_casualties_enabled = True
-    entrapped_casualties_enabled = True
+    surface_casualties_per_agent = 1
+    entrapped_casualties_per_agent = 1

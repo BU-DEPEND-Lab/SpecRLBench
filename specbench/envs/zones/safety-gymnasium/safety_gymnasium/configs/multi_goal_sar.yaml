@@ -18,19 +18,19 @@
 levels:
   level0:
     wall_count: 0
-    surface_casualties_enabled: true
-    entrapped_casualties_enabled: false
+    surface_casualties_per_agent: 1
+    entrapped_casualties_per_agent: 0
     building_num: 0
   level1:
     wall_count: 10
   level2:
     wall_count: 10
-    surface_casualties_enabled: false
-    entrapped_casualties_enabled: true
+    surface_casualties_per_agent: 0
+    entrapped_casualties_per_agent: 1
   level3:
     wall_count: 10
-    surface_casualties_enabled: true
-    entrapped_casualties_enabled: true
+    surface_casualties_per_agent: 1
+    entrapped_casualties_per_agent: 1
 
 placements_conf:
   extents: [-3.5, -3.5, 3.5, 3.5]
@@ -90,8 +90,8 @@ customized_defaults:
   agent_num: 2
   building_num: null
   wall_count: 10
-  surface_casualties_enabled: true
-  entrapped_casualties_enabled: false
+  surface_casualties_per_agent: 1
+  entrapped_casualties_per_agent: 0
   reward_goal: 1.0
   lidar_conf:
     num_bins: 16

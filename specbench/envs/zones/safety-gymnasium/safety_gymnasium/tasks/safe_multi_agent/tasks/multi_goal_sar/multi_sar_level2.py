@@ -26,8 +26,8 @@ class MultiGoalSARLevel2(MultiGoalSARLevel1):
 
     wall_count = 10
     building_num = 0
-    surface_casualties_enabled = False
-    entrapped_casualties_enabled = True
+    surface_casualties_per_agent = 0
+    entrapped_casualties_per_agent = 1
 
     def __init__(self, config) -> None:
         super().__init__(config=config)
@@ -41,7 +41,7 @@ class MultiGoalSARLevel2(MultiGoalSARLevel1):
             Buildings(
                 color=list(Buildings.COLORS)[0],
                 size=self.building_keepout * 0.75,
-                num=self.building_num,
+                num=int(self.building_num),
                 keepout=self.building_keepout,
                 placements=border_placements(
                     self.building_border_side_length,
@@ -49,11 +49,11 @@ class MultiGoalSARLevel2(MultiGoalSARLevel1):
                 ),
             ),
         ]
-        entrapped_num = int(self.agent_num * self.entrapped_casualties_enabled)
+        entrapped_num = int(self.agent_num * self.entrapped_casualties_per_agent)
         if entrapped_num > 0:
             geoms.append(
                 Casualtys(
-                    num=entrapped_num,
+                    num=int(entrapped_num),
                     category="entrapped",
                     size=self.casualty_size,
                     keepout=self.entrapped_casualty_keepout,
@@ -75,12 +75,12 @@ class MultiGoalSARLevel2(MultiGoalSARLevel1):
 
     def _build(self):
         self._replace_border_buildings(num=self.building_num)
-        entrapped_num = int(self.agent_num * self.entrapped_casualties_enabled)
+        entrapped_num = int(self.agent_num * self.entrapped_casualties_per_agent)
         if entrapped_num > 0:
             self._replace_geom(Casualtys(
                 category="entrapped",
                 size=self.casualty_size,
-                num=entrapped_num,
+                num=int(entrapped_num),
                 keepout=self.entrapped_casualty_keepout,
             ))
         self._replace_building_perimeter_walls()

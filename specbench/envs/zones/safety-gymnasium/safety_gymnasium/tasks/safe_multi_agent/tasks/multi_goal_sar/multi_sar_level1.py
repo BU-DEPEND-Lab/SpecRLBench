@@ -29,7 +29,7 @@ class MultiGoalSARLevel1(MultiGoalSARLevel0):
     def __init__(self, config) -> None:
         super().__init__(config=config)
         if self.wall_count > 0:
-            self._add_geoms(Walls(num=self.wall_count))
+            self._add_geoms(Walls(num=int(self.wall_count)))
 
     def specific_reset(self):
         return super().specific_reset()
@@ -58,7 +58,7 @@ class MultiGoalSARLevel1(MultiGoalSARLevel0):
                 ]
 
         self._replace_geom(Walls(
-            num=self.wall_count,
+            num=int(self.wall_count),
             placements=ring_placements(
                 self.wall_ring_radius, self.wall_count, margin=self.wall_margin,
             ),

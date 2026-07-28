@@ -26,9 +26,9 @@ def make_zone_env(env_name: str, render_mode=None, sb3: bool = False):
     if env_name.startswith("Point") or env_name.startswith("Car") or env_name.startswith("Ant"):
         from specbench.envs.zones.safety_gym_wrapper import SafetyGymWrapper
         from specbench.envs.zones.safety_gym_wrapper_ma import SafetyGymWrapperMA
-        from specbench.envs.zones.safety_gym_wrapper_ma_sar import SafetyGymWrapperMASAR
-        from specbench.envs.zones.safety_gym_wrapper_ma_sar_wc import SafetyGymWrapperMASARWC
-        from specbench.envs.zones.safety_gym_wrapper_ma_sar_ac import SafetyGymWrapperMASARAC
+        from specbench.envs.zones.safety_gym_wrapper_sar import SafetyGymWrapperMASAR
+        from specbench.envs.zones.safety_gym_wrapper_sar_wc import SafetyGymWrapperMASARWC
+        from specbench.envs.zones.safety_gym_wrapper_sar_ac import SafetyGymWrapperMASARAC
         import safety_gymnasium
 
         base = _strip_cost_suffix(env_name)
