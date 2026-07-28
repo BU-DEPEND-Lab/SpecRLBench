@@ -184,7 +184,9 @@ class MultiGoalSARLevel0(BaseTask):
             min_dist = min(dists)
             min_casualty_rescued = self._casualtys_rescued()[dists.index(min_dist)]
             if min_dist <= touch_threshold and not min_casualty_rescued:
-                reward += self.reward_goal
+                reward += (self.reward_goal
+                           / (self.agent_num * self.surface_casualties_enabled
+                              + self.agent_num * self.entrapped_casualties_enabled))
             self.last_dist_casualty[i] = min_dist
 
             rewards[a] = reward
