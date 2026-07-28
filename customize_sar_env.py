@@ -34,7 +34,7 @@ env_config = {
 
 from specbench.envs.zones.safety_gym_register import register_helper
 
-register_helper(env_config=env_config, multi_agent=True)
+register_helper(env_config=env_config)
 
 env = safety_gymnasium.make(env_config['env_id'], render_mode='human')
 

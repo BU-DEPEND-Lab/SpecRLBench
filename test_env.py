@@ -1,6 +1,8 @@
 import gymnasium as gym
 import specbench
 
+from specbench.envs.zones.zone_env import make_zone_env
+
 
 def make_env(env_name, render_mode=None):
     if env_name.startswith("Letter"):
@@ -8,12 +10,7 @@ def make_env(env_name, render_mode=None):
     elif env_name.startswith("Panda"):
         env = gym.make(env_name, disable_env_checker=True, render_mode=render_mode)
     elif env_name.startswith("Point") or env_name.startswith("Car") or env_name.startswith("Ant"):
-        from specbench.envs.zones.safety_gym_wrapper_ma import SafetyGymWrapperMA
-        from specbench.envs.zones.safety_gym_wrapper import SafetyGymWrapper
-        import safety_gymnasium
-
-        env = safety_gymnasium.make(env_name, disable_env_checker=True, render_mode=render_mode)
-        env = SafetyGymWrapperMA(env) if "MA" in env_name else SafetyGymWrapper(env)
+        env = make_zone_env(env_name, render_mode=render_mode)
     else:
         raise ValueError(f"Unknown environment name: {env_name}")
     return env
@@ -103,9 +100,6 @@ env_names = [
 
     'PandaLTLReach1Joints-v0',
     'PandaLTLReach1Joints-v0.partial',
-
-    # SAR smoke (RISE fork)
-    'PointLTL0MASAR2-v0',
 ]
 
 for env_name in env_names:

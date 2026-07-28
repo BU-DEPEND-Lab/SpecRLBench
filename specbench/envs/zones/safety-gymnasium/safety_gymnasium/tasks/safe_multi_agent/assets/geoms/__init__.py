@@ -25,8 +25,6 @@ from safety_gymnasium.tasks.safe_multi_agent.assets.geoms.oranges import Oranges
 from safety_gymnasium.tasks.safe_multi_agent.assets.geoms.pillars import Pillars
 from safety_gymnasium.tasks.safe_multi_agent.assets.geoms.sigwalls import Sigwalls
 from safety_gymnasium.tasks.safe_multi_agent.assets.geoms.walls import Walls
-from safety_gymnasium.tasks.safe_multi_agent.assets.geoms.buildings import Buildings
-from safety_gymnasium.tasks.safe_multi_agent.assets.geoms.casualtys import Casualtys
 from safety_gymnasium.tasks.safe_multi_agent.assets.geoms.zones import Zones
 from safety_gymnasium.tasks.safe_multi_agent.assets.geoms.ltl_walls import LtlWalls
 
@@ -48,6 +46,4 @@ GEOMS_REGISTER = [
     GoalYellow,
     Zones,
     LtlWalls,
-    Buildings,
-    Casualtys
 ]

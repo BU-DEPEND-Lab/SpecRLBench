@@ -24,7 +24,7 @@ from safety_gymnasium.tasks.safe_multi_agent.utils.sar_utils import (  # noqa: E
     building_geom,
 )
 
-from specbench.envs.zones.make_env import make_zone_env as make_env  # noqa: E402
+from specbench.envs.zones.zone_env import make_zone_env as make_env  # noqa: E402
 
 
 SAR_ENV_IDS = {

@@ -1,4 +1,4 @@
-from specbench.envs.zones.wrappers.safety_gym_wrapper_ma_sar import SafetyGymWrapperMASAR
+from specbench.envs.zones.safety_gym_wrapper_ma_sar import SafetyGymWrapperMASAR
 
 
 class SafetyGymWrapperMASARWC(SafetyGymWrapperMASAR):

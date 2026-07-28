@@ -113,7 +113,7 @@ def is_safety_gym_env(name: str) -> bool:
 def make_safety_gym_env(name: str, render_mode: str | None = None):
     # noinspection PyUnresolvedReferences
     import safety_gymnasium
-    from specbench.envs.zones.wrappers.safety_gym_wrapper import SafetyGymWrapper
+    from specbench.envs.zones.safety_gym_wrapper import SafetyGymWrapper
 
     # print(f"make_safety_gym_env, env_name = {name}")
     env = safety_gymnasium.make(name, render_mode=render_mode)
