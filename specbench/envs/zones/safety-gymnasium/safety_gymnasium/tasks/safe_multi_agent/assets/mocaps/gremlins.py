@@ -21,7 +21,7 @@ import numpy as np
 from safety_gymnasium.tasks.safe_multi_agent.assets.color import COLOR
 from safety_gymnasium.tasks.safe_multi_agent.assets.group import GROUP
 from safety_gymnasium.tasks.safe_multi_agent.bases.base_object import Mocap
-
+from safety_gymnasium.tasks.safe_multi_agent.utils.common_utils import *
 
 @dataclass
 class Gremlins(Mocap):  # pylint: disable=too-many-instance-attributes
@@ -43,6 +43,9 @@ class Gremlins(Mocap):  # pylint: disable=too-many-instance-attributes
     group: np.array = GROUP['gremlin']
     is_lidar_observed: bool = True
     is_constrained: bool = True
+
+    def __post_init__(self) -> None:
+        self.prev_contact = [False] * self.num
 
     def get_config(self, xy_pos, rot):
         """To facilitate get specific config for this object"""
@@ -92,23 +95,36 @@ class Gremlins(Mocap):  # pylint: disable=too-many-instance-attributes
             return cost
         
         for i, h_pos in enumerate(self.pos):
+            is_in_contact = False
             for j in range(self.agent.agent_num):
                 if i == j: continue
                 h_dist = self.agent.dist_xy(j, h_pos)
-                # print(f"DEBUG: Agent {i} to Agent {j} distance: {h_dist}")
+                # print(f"DEBUG: dist(agent_{j}, gremlin_{i}) = {h_dist}")
                 # if h_dist <= self.dist_threshold:
-                if h_dist <= self.size + self.dist_threshold:
-                    # print(f"DEBUG: COLLISION, episode terminated")
+                if (h_dist <= self.size + self.dist_threshold):
+                    is_in_contact = True
+                    # if (not (self.prev_contact[i] or self.prev_contact[j])):
+                        # print(f"DEBUG: gremlin collision")
                     cost[f"agent_{j}"]["cost_collision"] = 1.0  # Same cost structure
                     cost[f"agent_{i}"]["cost_collision"] = 1.0
+            self.prev_contact[i] = is_in_contact
                 # print(f"COST TRIGGERED for {self.color_name} zone {i}!")
         return cost
-
+    max_theta = 0
+    min_theta = 0
     def move(self):
         """Set mocap object positions before a physics step is executed."""
         # Read from world engine (bound in World.bind_engine), not preview agent engine.
         for i in range(self.num):
+            # Extract current position and heading angle
             agent_xy = self.engine.data.body(f'agent_{i}').xpos[:2]
+            theta = quat2rot(self.engine.data.body(f'agent_{i}').xquat.copy())
+            self.max_theta = max(theta, self.max_theta)
+            self.min_theta = min(theta, self.min_theta)
+            # Calculate shifted position (0 degrees = straight ahead)
+            # shifted_xy = (agent_xy 
+            # + 0.03 * np.array([np.cos(theta), np.sin(theta)])
+            # + 0.02 * np.array([np.cos(theta + np.pi/2), np.sin(theta + np.pi/2)]))       
             name = f'gremlin{i}'
             pos = np.r_[agent_xy, [1e-3]]
             self.set_mocap_pos(name + 'mocap', pos)

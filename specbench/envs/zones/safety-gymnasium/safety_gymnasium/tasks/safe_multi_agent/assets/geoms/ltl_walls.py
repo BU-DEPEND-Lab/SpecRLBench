@@ -15,7 +15,6 @@
 
 from dataclasses import dataclass
 import re
-from types import NoneType
 
 import numpy as np
 from safety_gymnasium.tasks.safe_multi_agent.assets.color import COLOR
@@ -47,76 +46,70 @@ class LtlWalls(Geom):  # pylint: disable=too-many-instance-attributes
     d_x: float = 0.0
     d_y: float = 0.0
     h_index: int = None
+    contype: int = 0
 
     def __post_init__(self) -> None:
-        try:
-            self.h_index = int(re.search(r"\d+", self.name).group())
-            self.theta = self.rots[self.h_index]
+        # Per-agent boundary contact flags (not per wall segment).
+        self.prev_contact: list[bool] = []
+        if self.name.startswith('building') and self.name.endswith('_ltl_walls'):
             self.color = COLOR['terracotta']
-        except Exception as e:
-            pass
+            self.h_index = int(re.search(r"\d+", self.name).group())
+            if self.rots is not None:
+                self.theta = self.rots[self.h_index]
         assert self.num in (2, 4)
         assert (
             self.locate_factor >= 0
         ), 'For cost calculation, the locate_factor must be greater than or equal to zero.'
-        # print(f"LOCATIONS: {self.locations}") Good
-        
+
         if self.locations is not None:
             self.d_x, self.d_y = self.locations[0], self.locations[1]
 
-        self.locations: list = [
-            (self.locate_factor+self.d_x, self.d_y),
-            (-self.locate_factor+self.d_x, self.d_y),
-            (self.d_x, self.locate_factor+self.d_y),
-            (self.d_x, -self.locate_factor+self.d_y),
-        ]
-        # print(f"LOCATIONS: {self.locations}") Good
+        self.sync_site((self.d_x, self.d_y), self.theta)
 
+    def sync_site(self, center_xy, rot) -> None:
+        """Set wall segment centers around a building center with rotation."""
+        self.d_x, self.d_y = float(center_xy[0]), float(center_xy[1])
+        self.theta = float(rot)
+        self.locations = [
+            (self.locate_factor + self.d_x, self.d_y),
+            (-self.locate_factor + self.d_x, self.d_y),
+            (self.d_x, self.locate_factor + self.d_y),
+            (self.d_x, -self.locate_factor + self.d_y),
+        ]
         cos_t, sin_t = np.cos(self.theta), np.sin(self.theta)
         self.locations = [
             (
-                (x - self.d_x) * cos_t - (y - self.d_y) * sin_t + self.d_x,  # New X
-                (x - self.d_x) * sin_t + (y - self.d_y) * cos_t + self.d_y   # New Y
+                (x - self.d_x) * cos_t - (y - self.d_y) * sin_t + self.d_x,
+                (x - self.d_x) * sin_t + (y - self.d_y) * cos_t + self.d_y,
             )
             for x, y in self.locations
         ]
-        # print(f"LOCATIONS: {self.locations}") Good
-        self.index: int = 0
+        self.index = 0
 
     def index_tick(self):
         """Count index."""
         self.index += 1
         self.index %= self.num
 
+    def process_config(self, config, layout, rots):
+        self.index = 0
+        return super().process_config(config, layout, rots)
+
     def get_config(self, xy_pos, rot):  # pylint: disable=unused-argument
         """To facilitate get specific config for this object."""
-        # print(f"LOCATIONS: {self.locations}")
-
-        # body = {
-        #     'name': self.name,
-        #     'pos': np.r_[xy_pos, 0.25],
-        #     'rot': 0,
-        #     'geoms': [
-        #         {
-        #             'name': self.name,
-        #             'size': np.array([0.05, self.size, 0.3]),
-        #             'type': 'box',
-        #             'contype': 0,
-        #             'conaffinity': 0,
-        #             'group': self.group,
-        #             'rgba': self.color * np.array([1, 1, 1, self.alpha]),
-        #         },
-        #     ],
-        # }
-        # print(f"LOCATIONS: {self.locations}")
-        rot = [np.arctan2(y - self.d_y, x - self.d_x) for x, y in self.locations][self.index]
+        xy_pos = np.asarray(xy_pos, dtype=float)
+        if self.name.startswith('building') and self.name.endswith('_ltl_walls'):
+            rot = float(np.arctan2(xy_pos[1] - self.d_y, xy_pos[0] - self.d_x))
+        else:
+            rot = [np.arctan2(y - self.d_y, x - self.d_x) for x, y in self.locations][self.index]
+        wall_size = np.array([0.025, self.size, self.height])
         body = {
             'name': self.name,
             'pos': np.r_[xy_pos, self.height],
             'rot': rot,
-            'size': np.array([0.025, self.size, self.height]),
+            'size': wall_size,
             'type': 'box',
-            'contype': 0,
+            'contype': self.contype,
             'conaffinity': 0,
             'group': self.group,
             'rgba': self.color * np.array([1, 1, 1, self.alpha]),
@@ -125,19 +118,11 @@ class LtlWalls(Geom):  # pylint: disable=too-many-instance-attributes
         return body
 
     def cal_cost(self):
-        # poses = [self.agent.pos_0, self.agent.pos_1]
-        # poses = [self.agent.get_agent_pos(i) for i in range(self.agent.agent_num)]
-        # cost = {
-        #     'agent_0': {
-        #         'wall_sensor': self.wall_sensor(poses[0][0], poses[0][1]),
-        #         'cost_ltl_walls': 0
-        #     }, 
-        #     'agent_1': {
-        #         'wall_sensor': self.wall_sensor(poses[1][0], poses[1][1]),
-        #         'cost_ltl_walls': 0
-        # }}
         cost = {}
-        for i in range(self.agent.agent_num):
+        agent_num = self.agent.agent_num
+        if len(self.prev_contact) < agent_num:
+            self.prev_contact.extend([False] * (agent_num - len(self.prev_contact)))
+        for i in range(agent_num):
             pos = self.agent.get_agent_pos(i)
             cond = pos[0] >= self.collision_threshold or \
                 pos[0] <= -self.collision_threshold or \
@@ -145,21 +130,9 @@ class LtlWalls(Geom):  # pylint: disable=too-many-instance-attributes
                 pos[1] <= -self.collision_threshold
             cost[f'agent_{i}'] = {
                 f'wall_sensor': self.wall_sensor(pos[0], pos[1]),
-                f'cost_ltl_walls': cond * 1
+                f'cost_ltl_walls': cond * 1,
             }
-        # for i, pos in enumerate(poses):
-        #     x, y = pos[0], pos[1]
-        #     if x >= self.collision_threshold or x <= -self.collision_threshold or y >= self.collision_threshold or y <= -self.collision_threshold:
-        #         cost[f'agent_{i}'][f'cost_ltl_walls'] = 1
-                # print(f"DEBUG: Agent hits boundary, episode terminated")
-        # x, y, _ = list(self.agent.pos_0)
-        # cost = {
-        #     'wall_sensor': self.wall_sensor(x, y),
-        #     'cost_ltl_walls': 0
-        # }
-        # if x >= self.collision_threshold or x <= -self.collision_threshold or y >= self.collision_threshold or y <= -self.collision_threshold:
-        #     cost['cost_ltl_walls'] = 1
-        # print(f"DEBUG: LtlWalls cost: {cost}")
+            self.prev_contact[i] = cond
         return cost
 
     def wall_sensor(self, x, y):
@@ -177,3 +150,5 @@ class LtlWalls(Geom):  # pylint: disable=too-many-instance-attributes
     @property
     def pos(self):
         """Helper to get list of Sigwalls positions."""
+        # pylint: disable-next=no-member
+        return [self.engine.data.body(f'{self.name[:-1]}{i}').xpos.copy() for i in range(self.num)]

@@ -256,10 +256,10 @@ class BaseAgent(abc.ABC):  # pylint: disable=too-many-instance-attributes
                 color = f' rgba="{rgb[0]:.4f} {rgb[1]:.4f} {rgb[2]:.4f} 1"'
                 xml.append(f'        <body name="agent{suffix}" pos="0 0 .1">')
                 xml.append(f'            <camera name="vision{suffix}" pos="0 0 .15" xyaxes="0 -1 0 .4 0 1" fovy="90"/>')
-                xml.append(f'            <joint type="slide" axis="1 0 0" name="x{suffix}" damping="0.01"/>')
-                xml.append(f'            <joint type="slide" axis="0 1 0" name="y{suffix}" damping="0.01"/>')
+                xml.append(f'            <joint type="slide" axis="1 0 0" name="x{suffix}" damping="0.02"/>')
+                xml.append(f'            <joint type="slide" axis="0 1 0" name="y{suffix}" damping="0.02"/>')
                 xml.append(f'            <joint type="hinge" axis="0 0 1" name="z{suffix}" damping="0.005"/>')
-                xml.append(f'            <geom name="agent{suffix}" type="sphere" size=".1" friction="1 0.01 0.01"{color}/>')
+                xml.append(f'            <geom name="agent{suffix}" type="sphere" size=".1" friction="1.0 0.01 0.01"{color}/>')
                 xml.append(f'            <geom name="pointarrow{suffix}" pos="0.1 0 0" size="0.05 0.05 0.05" type="box"{color}/>')
                 xml.append(f'            <site name="agent{suffix}" rgba="1 0 0 .1"/>')
                 xml.append('        </body>')

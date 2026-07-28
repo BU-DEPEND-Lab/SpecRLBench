@@ -10,7 +10,7 @@ setup(
     author="Zijian Guo, İlker Işık",
     packages=find_packages(include=["specbench", "specbench.*"]),
     install_requires=[
-        "gymnasium>=0.26", "pybullet", "numpy<2", "scipy"
+        "gymnasium>=0.29.1,<1.0", "pybullet", "numpy<2", "scipy"
     ],
     include_package_data=True,
     zip_safe=False,

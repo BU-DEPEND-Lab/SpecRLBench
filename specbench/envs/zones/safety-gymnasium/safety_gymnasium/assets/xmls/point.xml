@@ -31,8 +31,8 @@ Copyright 2022-2023 OmniSafe Team. All Rights Reserved.
       <camera name="vision" pos="0 0 .4" xyaxes="0 -1 0 .7 0 1" fovy="90"/>
       <camera name="vision_back" pos="0 0 .15" xyaxes="0 1 0 0 0 1" fovy="90"/>
       <!-- <geom name="camera" pos="-.2 0 0" type="sphere" size=".05"/> -->
-      <joint type="slide" axis="1 0 0" name="x" damping="0.01"/>
-      <joint type="slide" axis="0 1 0" name="y" damping="0.01"/>
+      <joint type="slide" axis="1 0 0" name="x" damping="0.0075"/>
+      <joint type="slide" axis="0 1 0" name="y" damping="0.0075"/>
       <joint type="hinge" axis="0 0 1" name="z" damping="0.005"/>
       <geom name="agent" type="sphere" size=".1" friction="1 0.01 0.01" rgba="0.7412 0.0431 0.1843 1"/>
       <geom name="pointarrow" pos="0.1 0 0" size="0.05 0.05 0.05" type="box" rgba="0.0039 0.1529 0.3961 1"/>

@@ -42,6 +42,12 @@ def rot2quat(theta):
     """Get a quaternion rotated only about the Z axis"""
     return np.array([np.cos(theta / 2), 0, 0, np.sin(theta / 2)], dtype='float64')
 
+def quat2rot(q):
+    """Extract the Z-axis rotation angle (theta) from the quaternion."""
+    # q[3] is sin(theta/2), q[0] is cos(theta/2)
+    # Multiply by 2 to get the full rotation angle
+    return float(2 * np.arctan2(q[3], q[0]))
+
 
 class ResamplingError(AssertionError):
     """Raised when we fail to sample a valid distribution of objects or goals"""

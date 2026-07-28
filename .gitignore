@@ -1,9 +1,11 @@
 */.DS_Store
 .DS_Store
-# Byte-compiled / optimized / DLL files
+# Byte-compiled / optimized / DLL files (any depth)
+**/__pycache__/
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyc
 
 script/fig/*
 envs/safety-gym/mujoco200_linux
@@ -17,7 +19,10 @@ envs/safety-gym/mujoco200_linux
 **/logs/**
 **/logs**/**
 **/misc/**
-
+_training_logs/
+_models/
+_models-saved/
+_tmp_ppo_lag_test/
 *.pth
 
 

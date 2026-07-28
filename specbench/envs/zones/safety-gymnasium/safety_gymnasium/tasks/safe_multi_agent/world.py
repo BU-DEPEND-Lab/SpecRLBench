@@ -141,6 +141,10 @@ class World:  # pylint: disable=too-many-instance-attributes
         # Convenience accessor for xml dictionary
         worldbody = self.xml['mujoco']['worldbody']
 
+        # xmltodict returns a dict (not list) when worldbody has a single <body>
+        if 'body' in worldbody and not isinstance(worldbody['body'], list):
+            worldbody['body'] = [worldbody['body']]
+
         # # Move agent position to starting position
         # worldbody['body'][0]['@pos'] = convert(
         #     # pylint: disable-next=no-member
@@ -301,76 +305,47 @@ class World:  # pylint: disable=too-many-instance-attributes
         
         worldbody['camera'] = cameras['b']['camera']
 
-        # Build and add a tracking camera (logic needed to ensure orientation correct)
-        theta = self.agent_rot[0]  # pylint: disable=no-member
-        xyaxes = {
-            'x1': np.cos(theta),
-            'x2': -np.sin(theta),
-            'x3': 0,
-            'y1': np.sin(theta),
-            'y2': np.cos(theta),
-            'y3': 1,
-        }
-        pos = {
-            'xp': 0 * np.cos(theta) + (-2) * np.sin(theta),
-            'yp': 0 * (-np.sin(theta)) + (-2) * np.cos(theta),
-            'zp': 2,
-        }
-        track_camera = xmltodict.parse(
-            """<b>
-            <camera name="track" mode="track" pos="{xp} {yp} {zp}"
-                xyaxes="{x1} {x2} {x3} {y1} {y2} {y3}"/>
-            </b>""".format(
-                **pos,
-                **xyaxes,
-            ),
-        )
-        theta1 = self.agent_rot[1]  # pylint: disable=no-member
-        xyaxes1 = {
-            'x1': np.cos(theta1),
-            'x2': -np.sin(theta1),
-            'x3': 0,
-            'y1': np.sin(theta1),
-            'y2': np.cos(theta1),
-            'y3': 1,
-        }
-        pos1 = {
-            'xp': 0 * np.cos(theta1) + (-2) * np.sin(theta1),
-            'yp': 0 * (-np.sin(theta1)) + (-2) * np.cos(theta1),
-            'zp': 2,
-        }
-        track_camera1 = xmltodict.parse(
-            """<b>
-            <camera name="track1" mode="track" pos="{xp} {yp} {zp}"
-                xyaxes="{x1} {x2} {x3} {y1} {y2} {y3}"/>
-            </b>""".format(
-                **pos1,
-                **xyaxes1,
-            ),
-        )
-        if 'camera' in worldbody['body'][0]:
-            if isinstance(worldbody['body'][0]['camera'], list):
-                worldbody['body'][0]['camera'] = worldbody['body'][0][0]['camera'] + [
+        # Build and add per-agent tracking cameras
+        for i in range(self._agent.agent_num):
+            theta = self.agent_rot[i]  # pylint: disable=no-member
+            xyaxes = {
+                'x1': np.cos(theta),
+                'x2': -np.sin(theta),
+                'x3': 0,
+                'y1': np.sin(theta),
+                'y2': np.cos(theta),
+                'y3': 1,
+            }
+            pos = {
+                'xp': 0 * np.cos(theta) + (-2) * np.sin(theta),
+                'yp': 0 * (-np.sin(theta)) + (-2) * np.cos(theta),
+                'zp': 2,
+            }
+            cam_name = 'track' if i == 0 else f'track{i}'
+            track_camera = xmltodict.parse(
+                """<b>
+                <camera name="{cam_name}" mode="track" pos="{xp} {yp} {zp}"
+                    xyaxes="{x1} {x2} {x3} {y1} {y2} {y3}"/>
+                </b>""".format(
+                    cam_name=cam_name,
+                    **pos,
+                    **xyaxes,
+                ),
+            )
+            if 'camera' in worldbody['body'][i]:
+                if isinstance(worldbody['body'][i]['camera'], list):
+                    worldbody['body'][i]['camera'] = worldbody['body'][i]['camera'] + [
+                        track_camera['b']['camera'],
+                    ]
+                else:
+                    worldbody['body'][i]['camera'] = [
+                        worldbody['body'][i]['camera'],
+                        track_camera['b']['camera'],
+                    ]
+            else:
+                worldbody['body'][i]['camera'] = [
                     track_camera['b']['camera'],
                 ]
-            else:
-                worldbody['body'][0]['camera'] = [
-                    worldbody['body'][0]['camera'],
-                    track_camera['b']['camera'],
-                ]
-            if isinstance(worldbody['body'][1]['camera'], list):
-                worldbody['body'][1]['camera'] = worldbody['body'][1]['camera'] + [
-                    track_camera1['b']['camera'],
-                ]
-            else:
-                worldbody['body'][1]['camera'] = [
-                    worldbody['body'][1]['camera'],
-                    track_camera1['b']['camera'],
-                ]
-        else:
-            worldbody['body'][0]['camera'] = [
-                track_camera['b']['camera'],
-            ]
 
         # Add free_geoms to the XML dictionary
         for name, object in self.free_geoms.items():  # pylint: disable=redefined-builtin, no-member

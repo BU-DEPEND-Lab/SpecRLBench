@@ -14,6 +14,7 @@
 # ==============================================================================
 
 from dataclasses import field
+import re
 
 import numpy as np
 from safety_gymnasium.tasks.safe_multi_agent.assets.group import GROUP
@@ -24,7 +25,7 @@ class Buildings(Geom):  # pylint: disable=too-many-instance-attributes
     """Colored buildings."""
 
     COLORS = {
-        "terracotta": np.array([226, 125, 91, 255])/255,
+        "terracotta": np.array([0, 1, 0, 1]),
         "tan": np.array([0.8, 0.75, 0.6, 1.0]),
         "green": np.array([0, 1, 0, 1]),
         "red": np.array([1, 0, 0, 1]),
@@ -47,8 +48,11 @@ class Buildings(Geom):  # pylint: disable=too-many-instance-attributes
         #     self.color = self.COLORS['black']
         # else:
         self.color: np.array = self.COLORS[self.color_name]
+        self.prev_contact = [False] * self.num
         self.group: int = GROUP['wall']
         self.is_lidar_observed: bool = True
+        self.is_occluded: bool = False
+        self.is_lidar_ids_observed: bool = False
         self.is_constrained: bool = True
         self.is_meshed: bool = False
 
@@ -86,23 +90,24 @@ class Buildings(Geom):  # pylint: disable=too-many-instance-attributes
         return geom
 
     def cal_cost(self):
-        # cost = {f'cost_buildings_{self.color}': 0}
-        # cost = {'agent_0': {f'cost_buildings_{self.color}': 0}, 
-        #         'agent_1': {f'cost_buildings_{self.color}': 0}}
-        cost = {agent: {f'cost_buildings_{self.color_name}': 0} for agent in self.agent.possible_agents}
-        # print(f"self.pos: {self.pos}")
-        for h_pos in self.pos:
-            for i in range(self.agent.agent_num):
-                agent_h_dist = self.agent.dist_xy(i, h_pos)
-                if agent_h_dist <= self.size:
-                    cost[f'agent_{i}'][f'cost_buildings_{self.color_name}'] = 1.0
-            # agent0_h_dist = self.agent.dist_xy(0, h_pos)
-            # agent1_h_dist = self.agent.dist_xy(1, h_pos)
-            # if agent0_h_dist <= self.size:
-            #     cost['agent_0'][f'cost_buildings_{self.color}'] = 1
-            # if agent1_h_dist <= self.size:
-            #     cost['agent_1'][f'cost_buildings_{self.color}'] = 1
-        
+        cost = {f'agent_{i}': {'cost_walls': 0} for i in range(self.agent.agent_num)}
+
+        for con in self.engine.data.contact[:self.engine.data.ncon]:
+            g1 = con.geom1
+            g2 = con.geom2
+            name1 = self.engine.model.geom(g1).name
+            name2 = self.engine.model.geom(g2).name
+            # print(f'[buildings.py] name1 = {name1}')
+            # print(f'[buildings.py] name2 = {name2}')
+
+            if "gremlin" in name1 and "wall" in name2:
+                agent_id = int(re.search(r"gremlin(\d+)obj", name1).group(1))
+                cost[f'agent_{agent_id}']['cost_walls'] = 1
+
+            elif "wall" in name1 and "gremlin" in name2:
+                agent_id = int(re.search(r"gremlin(\d+)obj", name1).group(1))
+                cost[f'agent_{agent_id}']['cost_walls'] = 1
+
         return cost
 
     @property

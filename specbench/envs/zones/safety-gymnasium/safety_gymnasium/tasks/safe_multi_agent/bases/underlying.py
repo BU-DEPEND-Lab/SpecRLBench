@@ -33,6 +33,7 @@ from safety_gymnasium.tasks.safe_multi_agent.assets.geoms import GEOMS_REGISTER
 from safety_gymnasium.tasks.safe_multi_agent.assets.mocaps import MOCAPS_REGISTER
 from safety_gymnasium.tasks.safe_multi_agent.bases.base_object import FreeGeom, Geom, Mocap
 from safety_gymnasium.tasks.safe_multi_agent.utils.common_utils import MujocoException
+from safety_gymnasium.tasks.safe_multi_agent.utils.common_utils import rot2quat
 from safety_gymnasium.tasks.safe_multi_agent.utils.keyboard_viewer import KeyboardViewer
 from safety_gymnasium.tasks.safe_multi_agent.utils.random_generator import RandomGenerator
 from safety_gymnasium.tasks.safe_multi_agent.world import World
@@ -287,10 +288,69 @@ class Underlying(abc.ABC):  # pylint: disable=too-many-instance-attributes
             mocap.set_agent(self.agent)
 
     def reset(self) -> None:
-        """Reset the environment."""
-        self._build()
-        # Save the layout at reset
+        """Reset the environment.
+
+        First reset builds MuJoCo from XML. Later resets resample layout and
+        update body poses without a full rebuild (fast path for all MA tasks).
+        """
+        if self.world is None:
+            self._build()
+        else:
+            self._fast_resample_layout()
         self.world_info.reset_layout = deepcopy(self.world_info.layout)
+
+    def _fast_resample_layout(self) -> None:
+        """Resample placements and apply poses to the existing MuJoCo model."""
+        if self.placements_conf.placements is None:
+            self._build_placements_dict()
+            self.random_generator.set_placements_info(
+                self.placements_conf.placements,
+                self.placements_conf.extents,
+                self.placements_conf.margin,
+            )
+        if self.random_generator.agent_num is None:
+            self.random_generator.agent_num = self.agent.agent_num
+
+        self.world_info.layout = self.random_generator.build_layout()
+        self.world_info.world_config_dict = self._build_world_config(self.world_info.layout)
+        self._apply_layout_from_config()
+
+    def _apply_layout_from_config(self) -> None:
+        """Update MuJoCo body poses from world_config_dict without rebuilding XML."""
+        config = self.world_info.world_config_dict
+        agent_xy = config['agent_xy']
+        if isinstance(agent_xy, list):
+            agent_positions = [np.asarray(pos, dtype=float) for pos in agent_xy]
+        else:
+            agent_positions = [np.asarray(agent_xy, dtype=float)]
+
+        agent_rot = config['agent_rot']
+        if np.isscalar(agent_rot):
+            agent_rots = [float(agent_rot)] * self.agent_num
+        else:
+            agent_rots = [float(r) for r in agent_rot]
+
+        mujoco.mj_resetData(self.model, self.data)  # pylint: disable=no-member
+        z = self.agent.z_height
+        for i in range(self.agent_num):
+            body_name = f'agent_{i}'
+            xy = agent_positions[i][:2]
+            self.model.body(body_name).pos[:2] = xy
+            self.model.body(body_name).pos[2] = z
+            self.model.body(body_name).quat[:] = rot2quat(agent_rots[i])
+
+        for geom_name, geom_cfg in config.get('geoms', {}).items():
+            pos = np.asarray(geom_cfg['pos'], dtype=float)
+            self._set_goal(geom_name, pos[:2])
+            if pos.shape[0] >= 3:
+                self.model.body(geom_name).pos[2] = pos[2]
+            if 'rot' in geom_cfg:
+                self.model.body(geom_name).quat[:] = rot2quat(float(geom_cfg['rot']))
+
+        self.data.qvel[:] = 0
+        if self.model.na:
+            self.data.act[:] = 0
+        mujoco.mj_forward(self.model, self.data)  # pylint: disable=no-member
 
     def _build(self) -> None:
         """Build the mujoco instance of environment from configurations."""

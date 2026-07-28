@@ -50,8 +50,10 @@ class Casualtys(Geom):  # pylint: disable=too-many-instance-attributes
         self.color: np.array = self.CATEGORIES[self.color_name]
         self.group: int = GROUP['casualty']
         self.is_lidar_observed: bool = True
+        self.is_lidar_ids_observed: bool = True
         self.is_constrained: bool = True
         self.is_meshed: bool = False
+        self.rescued = [False] * num
 
     def calculate_group(self) -> int:
         # return GROUP['goal']
@@ -85,25 +87,24 @@ class Casualtys(Geom):  # pylint: disable=too-many-instance-attributes
         return geom
 
     def cal_cost(self):
-        # cost = {f'cost_casualtys_{self.color_name}': 0}
-        # cost = {'agent_0': {f'cost_casualtys_{self.color_name}': 0}, 
-        #         'agent_1': {f'cost_casualtys_{self.color_name}': 0}}
-        cost = {agent: {f'cost_casualtys_{self.color_name}': 0} for agent in self.agent.possible_agents}
-        # print(f"self.pos: {self.pos}")
-        for h_pos in self.pos:
-            for i in range(self.agent.agent_num):
-                agent_h_dist = self.agent.dist_xy(i, h_pos)
-                if agent_h_dist <= self.size+0.1:
-                    cost[f'agent_{i}'][f'cost_casualtys_{self.color_name}'] = 1.0
-            # agent0_h_dist = self.agent.dist_xy(0, h_pos)
-            # agent1_h_dist = self.agent.dist_xy(1, h_pos)
-            # if agent0_h_dist <= self.size:
-            #     cost['agent_0'][f'cost_casualtys_{self.color_name}'] = 1
-            # if agent1_h_dist <= self.size:
-            #     cost['agent_1'][f'cost_casualtys_{self.color_name}'] = 1
-        
-        return cost
+        cost = {agent: {f'cost_casualtys_{self.color_name}': 0} 
+                for agent in self.agent.possible_agents}
 
+        for body_idx, h_pos in enumerate(self.pos):
+            # Skip casualties that were already reached
+            if self.rescued[body_idx]:
+                continue
+
+            for agent_idx in range(self.agent.agent_num):
+                agent_h_dist = self.agent.dist_xy(agent_idx, h_pos)
+
+                if agent_h_dist <= self.size + 0.15 and not self.rescued[body_idx]:
+                    self.rescued[body_idx] = True
+                    cost[f'agent_{agent_idx}'][f'cost_casualtys_{self.color_name}'] = 1.0
+                    break
+
+        return cost
+    
     @property
     def pos(self):
         """Helper to get the hazards positions from layout."""

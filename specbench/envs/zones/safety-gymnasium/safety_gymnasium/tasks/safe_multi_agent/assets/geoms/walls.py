@@ -15,6 +15,7 @@
 """Wall."""
 
 from dataclasses import dataclass, field
+import re
 
 import numpy as np
 
@@ -36,11 +37,13 @@ class Walls(Geom):  # pylint: disable=too-many-instance-attributes
     keepout: float = 0.25
     tangent: bool = False  # If True, wall runs tangent to ring when locations set
     random_size: bool = False
+    collision_threshold: float = 3.3
 
     color: np.array = COLOR['wall']
     group: np.array = GROUP['wall']
     is_lidar_observed: bool = True
     is_constrained: bool = False
+    prev_contact = [False] * 100
 
     def __post_init__(self) -> None:
         self._index = 0
@@ -76,6 +79,41 @@ class Walls(Geom):  # pylint: disable=too-many-instance-attributes
             'group': self.group,
             'rgba': self.color,
         }
+
+    def cal_cost(self):
+        cost = {
+            f'agent_{i}': {'cost_walls': 0}
+            for i in range(self.agent.agent_num)
+        }
+
+        # Contact state for this timestep
+        current_contact = [False] * self.agent.agent_num
+
+        # Find all agent-wall contacts
+        for con in self.engine.data.contact[:self.engine.data.ncon]:
+            g1 = con.geom1
+            g2 = con.geom2
+
+            name1 = self.engine.model.geom(g1).name
+            name2 = self.engine.model.geom(g2).name
+
+            if "gremlin" in name1 and "wall" in name2:
+                agent_id = int(re.search(r"gremlin(\d+)obj", name1).group(1))
+                current_contact[agent_id] = True
+
+            elif "wall" in name1 and "gremlin" in name2:
+                agent_id = int(re.search(r"gremlin(\d+)obj", name2).group(1))
+                current_contact[agent_id] = True
+
+        # Give cost only on the first contact frame
+        for i in range(self.agent.agent_num):
+            if current_contact[i] and not self.prev_contact[i]:
+                cost[f'agent_{i}']['cost_walls'] = 1
+
+            # Update previous contact state
+            self.prev_contact[i] = current_contact[i]
+
+        return cost
 
     @property
     def pos(self):

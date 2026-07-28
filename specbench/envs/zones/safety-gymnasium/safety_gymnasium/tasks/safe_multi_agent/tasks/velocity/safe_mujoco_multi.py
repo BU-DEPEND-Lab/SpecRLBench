@@ -88,13 +88,13 @@ class SafeMAEnv:
     def step(self, action):
         """Step the environment."""
         observations, rewards, terminations, truncations, info = self.env.step(action)
-        info_single = info[self.env.possible_agents[0]]
+        info_single = info[self.env.unwrapped.possible_agents[0]]
         velocity = np.sqrt(info_single['x_velocity'] ** 2 + info_single.get('y_velocity', 0) ** 2)
         if self.agent == 'Swimmer':
             velocity = info_single['x_velocity']
         cost_n = float(velocity > self._velocity_threshold)
         costs = {}
-        for agents in self.env.possible_agents:
+        for agents in self.env.unwrapped.possible_agents:
             costs[agents] = cost_n
 
         viewer = self.env.single_agent_env.mujoco_renderer.viewer

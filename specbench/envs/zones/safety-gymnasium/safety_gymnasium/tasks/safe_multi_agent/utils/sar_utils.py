@@ -17,30 +17,13 @@
 from __future__ import annotations
 
 import numpy as np
-from safety_gymnasium.tasks.safe_multi_agent.utils.random_generator import RandomGenerator
+from typing import TYPE_CHECKING
 
 
 def ring_locations(radius: float, n: int) -> list[tuple[float, float]]:
     """Fixed (x, y) centers evenly spaced on a circle."""
     angles = np.linspace(0, 2 * np.pi, n, endpoint=False)
     return [(float(radius * np.cos(theta)), float(radius * np.sin(theta))) for theta in angles]
-
-def draw_ring_placement(
-        radius: float,
-        n: int, 
-        margin: float, 
-        keepout: float,
-        random_generator: RandomGenerator):
-    """
-    Generates `num` amount of locations based on a specified border around the origin
-
-    Returns: A list of (x, y) locations from the `random_generator` that can be used
-    when updating locations in the `_build()` method of a task.
-    """
-    return random_generator.draw_placement(
-            placements=ring_placements(radius, n, margin, keepout), 
-            keepout=keepout
-            )
 
 def ring_placements(
     radius: float,
@@ -79,38 +62,9 @@ def border_placements(side_length, margin):
     ]
     return boxes
 
-def draw_border_placement(
-        side_length: float, 
-        margin: float, 
-        keepout: float,
-        random_generator: RandomGenerator):
-    """
-    Generates `num` amount of locations based on a specified border around the origin
-
-    Returns: A list of (x, y) locations from the `random_generator` that can be used
-    when updating locations in the `_build()` method of a task.
-    """
-    return random_generator.draw_placement(
-            placements=border_placements(side_length, margin), 
-            keepout=keepout
-            )
-
-def draw_border_placement_from_loop(
-        side_length: float, 
-        margin: float, 
-        keepout: float,
-        i: int, 
-        random_generator: RandomGenerator):
-    """
-    Generates `num` amount of locations based on a specified border around the origin
-
-    Returns: A list of (x, y) locations from the `random_generator` that can be used
-    when updating locations in the `_build()` method of a task.
-    """
-    return random_generator.draw_placement(
-            placements=[border_placements(side_length, margin)[i%4]], 
-            keepout=keepout
-            )
+def border_placement_keepout(margin: float, keepout: float) -> float:
+    """Clamp keepout so border strips (thickness ``margin``) stay sampleable."""
+    return min(keepout, margin / 2.0 - 1e-3)
 
 def size_randomization(
     base_half_sizes: list,
@@ -135,3 +89,127 @@ def size_randomization(
         y-y_margin, y+y_margin, n),
         random_generator.uniform(
         z-z_margin, z+z_margin, n)]).transpose()
+
+if TYPE_CHECKING:
+    from safety_gymnasium.tasks.safe_multi_agent.bases.base_task import BaseTask
+    from safety_gymnasium.tasks.safe_multi_agent.utils.random_generator import RandomGenerator
+
+
+def is_building_ltl_wall(name: str) -> bool:
+    """True for per-building perimeter walls, not the arena ``ltl_walls``."""
+    return name.startswith('building') and name.endswith('_ltl_walls')
+
+
+def building_geom(task: BaseTask):
+    """Return the task's Buildings geom, if present."""
+    for name in task._geoms:
+        if name.endswith('_buildings'):
+            return getattr(task, name)
+    return None
+
+
+def building_count(task: BaseTask) -> int:
+    """Number of buildings for layout sync (explicit count or one per agent)."""
+    return task.building_num if task.building_num != 0 else task.agent_num
+
+
+def building_prefix_from_geom(buildings) -> str:
+    """Layout key prefix for building instances (e.g. ``terracotta_building``)."""
+    return buildings.name[:-1]
+
+
+def agent_inside_building_idx(task: BaseTask, agent_idx: int) -> int | None:
+    """Return the building instance index the agent is inside, or None."""
+    buildings = building_geom(task)
+    if buildings is None:
+        return None
+    agent_xy = task.agent.get_agent_pos(agent_idx)[:2]
+    for b_idx, b_pos in enumerate(buildings.pos):
+        if np.max(np.abs(agent_xy - np.asarray(b_pos[:2]))) <= buildings.size:
+            return b_idx
+    return None
+
+
+def agents_inside_building_indices(task: BaseTask) -> list[int | None]:
+    """Per-agent building index when inside a shell, else None."""
+    return [agent_inside_building_idx(task, i) for i in range(task.agent_num)]
+
+
+def agent_has_entrapped_at_building(task: BaseTask, agent_idx: int) -> bool:
+    """True when agent is inside a building that hosts an entrapped casualty."""
+    inside_idx = agent_inside_building_idx(task, agent_idx)
+    if inside_idx is None or not hasattr(task, 'entrapped_casualtys'):
+        return False
+    return inside_idx < task.entrapped_casualtys.num
+
+
+def clear_building_pinned_locations(task: BaseTask) -> None:
+    """Clear pinned building, entrapped, and perimeter-wall locations before resample."""
+    buildings = building_geom(task)
+    if buildings is None:
+        return
+    buildings.locations = []
+    if hasattr(task, 'entrapped_casualtys'):
+        task.entrapped_casualtys.locations = []
+    for name in task._geoms:
+        if is_building_ltl_wall(name):
+            getattr(task, name).locations = []
+
+
+def clamp_building_placement_keepout(task: BaseTask, margin: float) -> None:
+    """Clamp building keepout so border strips stay sampleable."""
+    buildings = building_geom(task)
+    if buildings is None or not buildings.placements:
+        return
+    buildings.keepout = border_placement_keepout(margin, buildings.keepout)
+
+
+def sync_building_dependents_into_layout(task: BaseTask, layout: dict) -> None:
+    """Pin entrapped casualties and perimeter wall segments to building centers."""
+    buildings = building_geom(task)
+    if buildings is None:
+        return
+
+    building_prefix = building_prefix_from_geom(buildings)
+    task._cached_building_rots = task.random_generator.generate_rots(building_count(task))
+    buildings.rots = list(task._cached_building_rots)
+
+    if hasattr(task, 'entrapped_casualtys'):
+        for i in range(task.entrapped_casualtys.num):
+            layout[f'entrapped_casualty{i}'] = layout[f'{building_prefix}{i}'].copy()
+
+    for name in task._geoms:
+        if not is_building_ltl_wall(name):
+            continue
+        wall_idx = int(name[len('building'):name.index('_ltl_walls')])
+        wall = getattr(task, name)
+        center_xy = layout[f'{building_prefix}{wall_idx}']
+        rot = task._cached_building_rots[wall_idx]
+        wall.sync_site(center_xy, rot)
+        for seg_idx, loc in enumerate(wall.locations):
+            layout[f'building{wall_idx}_ltl_wall{seg_idx}'] = np.asarray(loc, dtype=float)
+
+
+_CASUALTY_GEOM_NAMES = ('surface_casualtys', 'entrapped_casualtys')
+
+
+def all_casualties_rescued(task: BaseTask) -> bool:
+    """Return True when every surface and entrapped casualty (if present) is rescued."""
+    found_any = False
+    for attr in _CASUALTY_GEOM_NAMES:
+        if not hasattr(task, attr):
+            continue
+        geom = getattr(task, attr)
+        if geom.num <= 0:
+            continue
+        found_any = True
+        if not all(geom.rescued):
+            return False
+    return found_any
+
+
+def mission_goal_achieved(task: BaseTask) -> tuple[bool, ...]:
+    """Shared goal_achieved tuple: same team mission flag for each agent."""
+    mission_complete = all_casualties_rescued(task)
+    return tuple(mission_complete for _ in range(task.agent_num))
+

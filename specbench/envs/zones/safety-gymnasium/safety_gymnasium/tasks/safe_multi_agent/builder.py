@@ -182,7 +182,7 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
         self.task.specific_reset()
         self.task.agent.reset()
 
-        cost = self._cost()
+        cost = self._cost(reset=True)
         # assert that there is no starting cost for each agent
         assert all(cost[agent]['cost_sum'] == 0 for agent in self.possible_agents), f'World has starting cost! {cost}'
         # cost_sum = np.sum([cost[agent]['cost_sum'] for agent in self.possible_agents])
@@ -267,7 +267,9 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
             self.task.specific_step()
 
             # Goal processing
-            if self.task.goal_achieved[0] or self.task.goal_achieved[1]:
+            # Collaborative SAR mission: all agents share the same mission-complete flag.
+            # continue_goal=False on SAR tasks means no respawn after full rescue.
+            if all(self.task.goal_achieved):
                 info['goal_met'] = True
                 if self.task.mechanism_conf.continue_goal:
                     # Update the internal layout
@@ -341,12 +343,12 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
 
         return reward
 
-    def _cost(self) -> dict:
+    def _cost(self, reset=False) -> dict:
         """Calculate the current costs and return a dict.
 
         Call exactly once per step.
         """
-        cost = self.task.calculate_cost()
+        cost = self.task.calculate_cost(reset)
 
         # Optionally remove shaping from reward functions.
         if self.task.cost_conf.constrain_indicator:
@@ -386,7 +388,7 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
         ), 'When you use vision envs, you should not call this function explicitly.'
         return self.task.render(cost=self.cost, **asdict(self.render_parameters))
 
-    def action_space(self, agent: str) -> gymnasium.spaces.Box:
+    def action_space(self, agent: str) -> gymnasium.spaces.box.Box:
         """Helper to get action space."""
         return self.task.action_space[agent]
 

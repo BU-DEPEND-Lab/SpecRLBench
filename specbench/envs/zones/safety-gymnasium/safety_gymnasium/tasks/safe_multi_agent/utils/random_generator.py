@@ -119,8 +119,14 @@ class RandomGenerator:
             if len(constrained) == 1:
                 choice = constrained[0]
             else:
-                areas = [(x2 - x1) * (y2 - y1) for x1, y1, x2, y2 in constrained]
-                probs = np.array(areas) / np.sum(areas)
+                areas = np.array([(x2 - x1) * (y2 - y1) for x1, y1, x2, y2 in constrained])
+                total = areas.sum()
+                if total <= 0:
+                    raise ValueError(
+                        'All placement rectangles collapsed to zero area after keepout; '
+                        'increase margin or reduce keepout.',
+                    )
+                probs = areas / total
                 choice = constrained[self.random_generator.choice(len(constrained), p=probs)]
         xmin, ymin, xmax, ymax = choice
         return np.array(
